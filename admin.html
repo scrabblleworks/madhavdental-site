@@ -189,10 +189,11 @@ function showRatingChangeReminder(oldRating, newRating) {
   div.style.border = '1px solid #e0b400';
   div.innerHTML = `
     <h2 style="color:#8a6500">⚠ Rating changed: ${oldRating} → ${newRating}</h2>
-    <p style="margin:0 0 10px;font-size:14px;line-height:1.5">
-      The site's rating is now saved and live. You still need to <strong>manually update patient-experiences.html</strong>
-      in 3 places (the &lt;title&gt; tag, meta description, and Open Graph tag) since those are static text, not pulled from this content.
-    </p>
+            <p style="margin:0 0 10px;font-size:14px;line-height:1.5">
+          The site's rating is now saved and live, and the page's meta tags update automatically for visitors and search engines. 
+          One thing to know: if someone shares this page's link on WhatsApp or Facebook before your next deploy, 
+          the preview card may briefly show the old rating — those platforms cache the page's raw HTML separately.
+        </p>
     <button type="button" class="btn-remove" id="dismissReminder" style="border-color:#8a6500;color:#8a6500">Got it, dismiss</button>
   `;
   div.querySelector('#dismissReminder').addEventListener('click', () => div.remove());
