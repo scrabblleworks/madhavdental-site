@@ -7,6 +7,16 @@ function buildReviewSlideHTML(r){
   const linkHtml = r.link ? `<a href="${escapeHtml(r.link)}" target="_blank" rel="noopener">View on Google →</a>` : '';
   return `<article class="review-slide"><div class="review"><div class="stars" aria-label="${r.stars||5} out of 5 stars">${stars}</div><h3>${escapeHtml(r.name)}</h3><p>${escapeHtml(r.text)}</p>${linkHtml}</div></article>`;
 }
+function updateMetaRatingTags(rating){
+  if(!rating) return;
+  const pattern = /\d(\.\d)?\/5/;
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if(metaDesc) metaDesc.setAttribute('content', metaDesc.getAttribute('content').replace(pattern, rating+'/5'));
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if(ogTitle) ogTitle.setAttribute('content', ogTitle.getAttribute('content').replace(pattern, rating+'/5'));
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  if(ogDesc) ogDesc.setAttribute('content', ogDesc.getAttribute('content').replace(pattern, rating+'/5'));
+}
 async function loadDynamicContent(){
   try{
     const res = await fetch('/api/content');
@@ -15,6 +25,7 @@ async function loadDynamicContent(){
     if(data && data.rating){
       const el = document.getElementById('peRating');
       if(el) el.textContent = data.rating;
+      updateMetaRatingTags(data.rating);
     }
     if(data && Array.isArray(data.reviews) && data.reviews.length){
       const track = document.querySelector('.review-track');
