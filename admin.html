@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Content Admin — Madhav Dental Clinic</title>
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  body{padding:32px 0}
+  .admin-wrap{max-width:720px;margin:0 auto;padding:0 20px}
+  .admin-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
+  .admin-card h2{font-family:Georgia,serif;color:var(--dark);margin:0 0 16px;font-size:21px}
+  .admin-field{margin-bottom:14px}
+  .admin-field label{display:block;font-weight:700;font-size:14px;color:var(--dark);margin-bottom:6px}
+  .admin-field input[type="text"],.admin-field input[type="url"],.admin-field textarea,.admin-field select{
+    width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font:inherit;font-size:15px;color:var(--body)
+  }
+  .admin-field textarea{min-height:80px;resize:vertical}
+  .review-entry{border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;background:var(--bg)}
+  .review-entry-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .review-entry-head span{font-weight:700;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:1px}
+  .btn-remove{background:none;border:1px solid #b3261e;color:#b3261e;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer}
+  .btn-remove:hover{background:#b3261e;color:#fff}
+  .btn-add{background:none;border:1px dashed var(--blue);color:var(--blue);border-radius:8px;padding:12px;width:100%;font-weight:700;cursor:pointer;font-size:14px}
+  .btn-add:hover{background:var(--light)}
+  .admin-status{margin-top:14px;font-size:14px;font-weight:700}
+  .admin-status.ok{color:#0a7a3d}
+  .admin-status.err{color:#b3261e}
+  #lockScreen{max-width:400px;margin:80px auto 0}
+  #app{display:none}
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+
+  <div id="lockScreen" class="admin-card">
+    <h2>Content Admin</h2>
+    <div class="admin-field">
+      <label for="pwInput">Password</label>
+      <input type="text" id="pwInput" autocomplete="off" placeholder="Enter admin password">
+    </div>
+    <button class="btn btn-primary" id="unlockBtn" style="width:100%;text-align:center">Unlock</button>
+    <p id="lockError" class="admin-status err" style="display:none">Incorrect password, or content couldn't be loaded.</p>
+  </div>
+
+  <div id="app">
+    <div class="admin-card">
+      <h2>Google Rating</h2>
+      <div class="admin-field">
+        <label for="ratingInput">Rating (e.g. 4.7)</label>
+        <input type="text" id="ratingInput">
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Reviews (newest shown first on the site)</h2>
+      <div id="reviewsList"></div>
+      <button class="btn-add" id="addReviewBtn">+ Add a review</button>
+    </div>
+
+    <button class="btn btn-primary" id="saveBtn" style="width:100%;text-align:center;padding:14px">Save Changes</button>
+    <p id="saveStatus" class="admin-status" style="display:none"></p>
+  </div>
+
+</div>
+
+<script>
+let ADMIN_PASSWORD = '';
+let currentContent = null;
+
+const lockScreen = document.getElementById('lockScreen');
+const app = document.getElementById('app');
+const pwInput = document.getElementById('pwInput');
+const unlockBtn = document.getElementById('unlockBtn');
+const lockError = document.getElementById('lockError');
+const ratingInput = document.getElementById('ratingInput');
+const reviewsList = document.getElementById('reviewsList');
+const addReviewBtn = document.getElementById('addReviewBtn');
+const saveBtn = document.getElementById('saveBtn');
+const saveStatus = document.getElementById('saveStatus');
+
+function renderReviews(reviews) {
+  reviewsList.innerHTML = '';
+  reviews.forEach((r, i) => addReviewEntry(r, i));
+}
+
+function addReviewEntry(review, index) {
+  const div = document.createElement('div');
+  div.className = 'review-entry';
+  div.dataset.index = index;
+  div.innerHTML = `
+    <div class="review-entry-head">
+      <span>Review ${index + 1}</span>
+      <button type="button" class="btn-remove" data-action="remove">Remove</button>
+    </div>
+    <div class="admin-field">
+      <label>Patient name</label>
+      <input type="text" class="f-name" value="${(review.name || '').replace(/"/g,'&quot;')}">
+    </div>
+    <div class="admin-field">
+      <label>Stars</label>
+      <select class="f-stars">
+        ${[5,4,3,2,1].map(n => `<option value="${n}" ${review.stars===n?'selected':''}>${n} star${n>1?'s':''}</option>`).join('')}
+      </select>
+    </div>
+    <div class="admin-field">
+      <label>Review text (verbatim — do not edit patient wording)</label>
+      <textarea class="f-text">${(review.text || '')}</textarea>
+    </div>
+    <div class="admin-field">
+      <label>Google review link (optional)</label>
+      <input type="url" class="f-link" value="${(review.link || '').replace(/"/g,'&quot;')}">
+    </div>
+  `;
+  div.querySelector('[data-action="remove"]').addEventListener('click', () => {
+    div.remove();
+  });
+  reviewsList.appendChild(div);
+}
+
+addReviewBtn.addEventListener('click', () => {
+  addReviewEntry({ name: '', stars: 5, text: '', link: '' }, reviewsList.children.length);
+});
+
+async function loadContent() {
+  const res = await fetch('/api/content');
+  if (!res.ok) throw new Error('Failed to load content');
+  return res.json();
+}
+
+unlockBtn.addEventListener('click', async () => {
+  const pw = pwInput.value.trim();
+  if (!pw) return;
+  try {
+    currentContent = await loadContent();
+    ADMIN_PASSWORD = pw;
+    ratingInput.value = currentContent.rating || '';
+    renderReviews(currentContent.reviews || []);
+    lockScreen.style.display = 'none';
+    app.style.display = 'block';
+  } catch (e) {
+    lockError.style.display = 'block';
+  }
+});
+
+saveBtn.addEventListener('click', async () => {
+  const reviews = [...reviewsList.children].map(div => ({
+    name: div.querySelector('.f-name').value.trim(),
+    stars: parseInt(div.querySelector('.f-stars').value, 10),
+    text: div.querySelector('.f-text').value.trim(),
+    link: div.querySelector('.f-link').value.trim()
+  }));
+  const payload = { rating: ratingInput.value.trim(), reviews };
+
+  saveStatus.style.display = 'block';
+  saveStatus.className = 'admin-status';
+  saveStatus.textContent = 'Saving...';
+
+  try {
+    const res = await fetch('/api/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': ADMIN_PASSWORD },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+    saveStatus.className = 'admin-status ok';
+    saveStatus.textContent = 'Saved. Changes are live on the site now.';
+  } catch (e) {
+    saveStatus.className = 'admin-status err';
+    saveStatus.textContent = 'Error: ' + e.message;
+  }
+});
+</script>
+</body>
+</html>
