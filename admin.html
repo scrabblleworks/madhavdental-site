@@ -29,8 +29,6 @@
   .admin-status.err{color:#b3261e}
   #lockScreen{max-width:400px;margin:80px auto 0}
   #app{display:none}
-  #logoutBtn{float:right;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px}
-  #logoutBtn:hover{background:var(--bg)}
 </style>
 </head>
 <body>
@@ -47,14 +45,19 @@
   </div>
 
   <div id="app">
-    <button type="button" id="logoutBtn">Log out</button>
-    <div style="clear:both"></div>
-
     <div class="admin-card">
       <h2>Google Rating</h2>
       <div class="admin-field">
         <label for="ratingInput">Rating (e.g. 4.7)</label>
         <input type="text" id="ratingInput">
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Clinic Hours</h2>
+      <div class="admin-field">
+        <label for="hoursInput">Shown on Visit Us page. One line per row, e.g. Monday – Sunday: 10:00 AM – 8:00 PM</label>
+        <textarea id="hoursInput" rows="3"></textarea>
       </div>
     </div>
 
@@ -73,7 +76,6 @@
 <script>
 let ADMIN_PASSWORD = '';
 let currentContent = null;
-let originalRating = '';
 
 const lockScreen = document.getElementById('lockScreen');
 const app = document.getElementById('app');
@@ -81,11 +83,11 @@ const pwInput = document.getElementById('pwInput');
 const unlockBtn = document.getElementById('unlockBtn');
 const lockError = document.getElementById('lockError');
 const ratingInput = document.getElementById('ratingInput');
+const hoursInput = document.getElementById('hoursInput');
 const reviewsList = document.getElementById('reviewsList');
 const addReviewBtn = document.getElementById('addReviewBtn');
 const saveBtn = document.getElementById('saveBtn');
 const saveStatus = document.getElementById('saveStatus');
-const logoutBtn = document.getElementById('logoutBtn');
 
 function renderReviews(reviews) {
   reviewsList.innerHTML = '';
@@ -136,69 +138,21 @@ async function loadContent() {
   return res.json();
 }
 
-async function verifyPassword(pw) {
-  const res = await fetch('/api/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-admin-password': pw }
-  });
-  return res.ok;
-}
-
 unlockBtn.addEventListener('click', async () => {
   const pw = pwInput.value.trim();
   if (!pw) return;
   try {
-    const isValid = await verifyPassword(pw);
-    if (!isValid) {
-      lockError.style.display = 'block';
-      return;
-    }
     currentContent = await loadContent();
     ADMIN_PASSWORD = pw;
     ratingInput.value = currentContent.rating || '';
-    originalRating = currentContent.rating || '';
+    hoursInput.value = currentContent.hours || 'Monday – Sunday: 10:00 AM – 8:00 PM';
     renderReviews(currentContent.reviews || []);
     lockScreen.style.display = 'none';
     app.style.display = 'block';
-    lockError.style.display = 'none';
   } catch (e) {
     lockError.style.display = 'block';
   }
 });
-
-logoutBtn.addEventListener('click', () => {
-  ADMIN_PASSWORD = '';
-  currentContent = null;
-  originalRating = '';
-  pwInput.value = '';
-  app.style.display = 'none';
-  lockScreen.style.display = 'block';
-  const reminder = document.getElementById('ratingReminder');
-  if (reminder) reminder.remove();
-  saveStatus.style.display = 'none';
-});
-
-function showRatingChangeReminder(oldRating, newRating) {
-  const existing = document.getElementById('ratingReminder');
-  if (existing) existing.remove();
-
-  const div = document.createElement('div');
-  div.id = 'ratingReminder';
-  div.className = 'admin-card';
-  div.style.background = '#fff8e1';
-  div.style.border = '1px solid #e0b400';
-  div.innerHTML = `
-    <h2 style="color:#8a6500">⚠ Rating changed: ${oldRating} → ${newRating}</h2>
-            <p style="margin:0 0 10px;font-size:14px;line-height:1.5">
-          The site's rating is now saved and live, and the page's meta tags update automatically for visitors and search engines. 
-          One thing to know: if someone shares this page's link on WhatsApp or Facebook before your next deploy, 
-          the preview card may briefly show the old rating — those platforms cache the page's raw HTML separately.
-        </p>
-    <button type="button" class="btn-remove" id="dismissReminder" style="border-color:#8a6500;color:#8a6500">Got it, dismiss</button>
-  `;
-  div.querySelector('#dismissReminder').addEventListener('click', () => div.remove());
-  app.insertBefore(div, app.firstChild);
-}
 
 saveBtn.addEventListener('click', async () => {
   const reviews = [...reviewsList.children].map(div => ({
@@ -207,8 +161,7 @@ saveBtn.addEventListener('click', async () => {
     text: div.querySelector('.f-text').value.trim(),
     link: div.querySelector('.f-link').value.trim()
   }));
-  const newRating = ratingInput.value.trim();
-  const payload = { rating: newRating, reviews };
+  const payload = { rating: ratingInput.value.trim(), hours: hoursInput.value.trim(), reviews };
 
   saveStatus.style.display = 'block';
   saveStatus.className = 'admin-status';
@@ -224,11 +177,6 @@ saveBtn.addEventListener('click', async () => {
     if (!res.ok) throw new Error(data.error || 'Save failed');
     saveStatus.className = 'admin-status ok';
     saveStatus.textContent = 'Saved. Changes are live on the site now.';
-
-    if (newRating !== originalRating) {
-      showRatingChangeReminder(originalRating, newRating);
-      originalRating = newRating;
-    }
   } catch (e) {
     saveStatus.className = 'admin-status err';
     saveStatus.textContent = 'Error: ' + e.message;
