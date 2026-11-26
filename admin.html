@@ -13,7 +13,7 @@
   .admin-card h2{font-family:Georgia,serif;color:var(--dark);margin:0 0 16px;font-size:21px}
   .admin-field{margin-bottom:14px}
   .admin-field label{display:block;font-weight:700;font-size:14px;color:var(--dark);margin-bottom:6px}
-  .admin-field input[type="text"],.admin-field input[type="url"],.admin-field textarea,.admin-field select{
+  .admin-field input[type="text"],.admin-field input[type="password"],.admin-field input[type="url"],.admin-field textarea,.admin-field select{
     width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font:inherit;font-size:15px;color:var(--body)
   }
   .admin-field textarea{min-height:80px;resize:vertical}
@@ -38,7 +38,12 @@
     <h2>Content Admin</h2>
     <div class="admin-field">
       <label for="pwInput">Password</label>
-      <input type="password" id="pwInput" autocomplete="off" placeholder="Enter admin password">
+      <div style="position:relative">
+        <input type="password" id="pwInput" autocomplete="off" placeholder="Enter admin password" style="padding-right:44px">
+        <button type="button" id="pwToggle" aria-label="Show password" title="Show password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;padding:6px;line-height:0;color:#5a6b7b">
+          <svg id="eyeIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
     <button class="btn btn-primary" id="unlockBtn" style="width:100%;text-align:center">Unlock</button>
     <p id="lockError" class="admin-status err" style="display:none">Incorrect password, or content couldn't be loaded.</p>
@@ -90,12 +95,25 @@ const addReviewBtn = document.getElementById('addReviewBtn');
 const saveBtn = document.getElementById('saveBtn');
 const saveStatus = document.getElementById('saveStatus');
 const logoutBtn = document.getElementById('logoutBtn');
+const pwToggle = document.getElementById('pwToggle');
+const eyeIcon = document.getElementById('eyeIcon');
+const EYE_OPEN = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.9 10.9 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+pwToggle.addEventListener('click', () => {
+  const show = pwInput.type === 'password';
+  pwInput.type = show ? 'text' : 'password';
+  eyeIcon.innerHTML = show ? EYE_OFF : EYE_OPEN;
+  pwToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  pwToggle.title = show ? 'Hide password' : 'Show password';
+});
 pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') unlockBtn.click(); });
 
 logoutBtn.addEventListener('click', () => {
   ADMIN_PASSWORD = '';
   currentContent = null;
   pwInput.value = '';
+  pwInput.type = 'password';
+  eyeIcon.innerHTML = EYE_OPEN;
   ratingInput.value = '';
   hoursInput.value = '';
   reviewsList.innerHTML = '';
