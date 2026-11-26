@@ -7,6 +7,7 @@ const KV_KEY = "site-content";
 
 const DEFAULT_CONTENT = {
   rating: "4.7",
+  hours: "Monday – Sunday: 10:00 AM – 8:00 PM",
   reviews: [
     {
       name: "Mallika Preman",
@@ -67,6 +68,12 @@ export async function onRequestPost(context) {
   // Basic shape validation, so a malformed save can't break the public site
   if (typeof body.rating !== "string" || !Array.isArray(body.reviews)) {
     return new Response(JSON.stringify({ error: "Invalid content shape" }), {
+      status: 400,
+      headers: corsHeaders()
+    });
+  }
+  if (body.hours !== undefined && (typeof body.hours !== "string" || body.hours.length > 300)) {
+    return new Response(JSON.stringify({ error: "Invalid hours" }), {
       status: 400,
       headers: corsHeaders()
     });
