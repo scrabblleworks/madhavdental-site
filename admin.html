@@ -38,13 +38,14 @@
     <h2>Content Admin</h2>
     <div class="admin-field">
       <label for="pwInput">Password</label>
-      <input type="text" id="pwInput" autocomplete="off" placeholder="Enter admin password">
+      <input type="password" id="pwInput" autocomplete="off" placeholder="Enter admin password">
     </div>
     <button class="btn btn-primary" id="unlockBtn" style="width:100%;text-align:center">Unlock</button>
     <p id="lockError" class="admin-status err" style="display:none">Incorrect password, or content couldn't be loaded.</p>
   </div>
 
   <div id="app">
+    <div style="text-align:right;margin-bottom:12px"><button class="btn" id="logoutBtn" type="button">Log out</button></div>
     <div class="admin-card">
       <h2>Google Rating</h2>
       <div class="admin-field">
@@ -88,6 +89,21 @@ const reviewsList = document.getElementById('reviewsList');
 const addReviewBtn = document.getElementById('addReviewBtn');
 const saveBtn = document.getElementById('saveBtn');
 const saveStatus = document.getElementById('saveStatus');
+const logoutBtn = document.getElementById('logoutBtn');
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') unlockBtn.click(); });
+
+logoutBtn.addEventListener('click', () => {
+  ADMIN_PASSWORD = '';
+  currentContent = null;
+  pwInput.value = '';
+  ratingInput.value = '';
+  hoursInput.value = '';
+  reviewsList.innerHTML = '';
+  saveStatus.style.display = 'none';
+  lockError.style.display = 'none';
+  app.style.display = 'none';
+  lockScreen.style.display = 'block';
+});
 
 function renderReviews(reviews) {
   reviewsList.innerHTML = '';
@@ -141,7 +157,15 @@ async function loadContent() {
 unlockBtn.addEventListener('click', async () => {
   const pw = pwInput.value.trim();
   if (!pw) return;
+  lockError.style.display = 'none';
   try {
+    const v = await fetch('/api/verify', { method: 'POST', headers: { 'x-admin-password': pw } });
+    if (v.status === 401) {
+      lockError.textContent = 'Incorrect password.';
+      lockError.style.display = 'block';
+      return;
+    }
+    if (!v.ok) throw new Error('verify failed');
     currentContent = await loadContent();
     ADMIN_PASSWORD = pw;
     ratingInput.value = currentContent.rating || '';
@@ -150,6 +174,7 @@ unlockBtn.addEventListener('click', async () => {
     lockScreen.style.display = 'none';
     app.style.display = 'block';
   } catch (e) {
+    lockError.textContent = "Couldn't reach the server. Try again.";
     lockError.style.display = 'block';
   }
 });
